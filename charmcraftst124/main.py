@@ -163,37 +163,8 @@ def pack(
         logger.info(
             f'Passing unrecognized arguments to `charmcraft pack`: {" ".join(context.args)}'
         )
-    if not charmcraft_yaml.exists():
-        raise FileNotFoundError(
-            "charmcraft.yaml not found. `cd` into the directory with charmcraft.yaml"
-        )
-    yaml_data = yaml.safe_load(charmcraft_yaml.read_text())
-    for key in ("base", "bases"):
-        if key in yaml_data:
-            raise ValueError(
-                f"'{key}' key in charmcraft.yaml not supported with ST124. Use 'platforms' key "
-                "instead.\n\n"
-                "Docs: https://github.com/canonical/charmcraftst124?tab=readme-ov-file#usage"
-            )
-    platforms = yaml_data.get("platforms")
-    if not platforms:
-        raise ValueError(
-            "'platforms' key in charmcraft.yaml required\n\n"
-            "Docs: https://github.com/canonical/charmcraftst124?tab=readme-ov-file#usage"
-        )
-    if not isinstance(platforms, dict):
-        raise TypeError(
-            "Expected charmcraft.yaml 'platforms' with type 'dict', got "
-            f"{repr(type(platforms).__name__)}: {repr(platforms)}\n\n"
-            "Docs: https://github.com/canonical/charmcraftst124?tab=readme-ov-file#usage"
-        )
-    for value in platforms.values():
-        if value is not None:
-            raise ValueError(
-                "Shorthand notation required ('build-on' and 'build-for' not supported) in "
-                "charmcraft.yaml 'platforms'.\n\n"
-                "Docs: https://github.com/canonical/charmcraftst124?tab=readme-ov-file#usage"
-            )
+    check_charmcraft_yaml()
+    platforms = yaml.safe_load(charmcraft_yaml.read_text())["platforms"]
     if platform not in platforms:
         raise ValueError(
             f"Platform {repr(platform)} not found in charmcraft.yaml 'platforms': "
@@ -247,6 +218,49 @@ def pack(
         )
         shutil.move(charm_file, new_path)
         logger.info(f"Moved {charm_file} to {new_path}")
+
+
+@app.command()
+def check_charmcraft_yaml(verbose: Verbose = False):
+    """Check if supported ST124 shorthand notation syntax is used in charmcraft.yaml
+
+    Docs: https://github.com/canonical/charmcraftst124?tab=readme-ov-file#usage
+    """
+    if verbose:
+        # Verbose can be globally enabled from app level or command level
+        # (Therefore, we should only enable verbose—not disable it)
+        state.verbose = True
+    if not charmcraft_yaml.exists():
+        raise FileNotFoundError(
+            "charmcraft.yaml not found. `cd` into the directory with charmcraft.yaml"
+        )
+    yaml_data = yaml.safe_load(charmcraft_yaml.read_text())
+    for key in ("base", "bases"):
+        if key in yaml_data:
+            raise ValueError(
+                f"'{key}' key in charmcraft.yaml not supported with ST124. Use 'platforms' key "
+                "instead.\n\n"
+                "Docs: https://github.com/canonical/charmcraftst124?tab=readme-ov-file#usage"
+            )
+    platforms = yaml_data.get("platforms")
+    if not platforms:
+        raise ValueError(
+            "'platforms' key in charmcraft.yaml required\n\n"
+            "Docs: https://github.com/canonical/charmcraftst124?tab=readme-ov-file#usage"
+        )
+    if not isinstance(platforms, dict):
+        raise TypeError(
+            "Expected charmcraft.yaml 'platforms' with type 'dict', got "
+            f"{repr(type(platforms).__name__)}: {repr(platforms)}\n\n"
+            "Docs: https://github.com/canonical/charmcraftst124?tab=readme-ov-file#usage"
+        )
+    for value in platforms.values():
+        if value is not None:
+            raise ValueError(
+                "Shorthand notation required ('build-on' and 'build-for' not supported) in "
+                "charmcraft.yaml 'platforms'.\n\n"
+                "Docs: https://github.com/canonical/charmcraftst124?tab=readme-ov-file#usage"
+            )
 
 
 @app.callback()
