@@ -92,15 +92,22 @@ class State:
 class Platform(str):
     """Platform in charmcraft.yaml 'platforms' (e.g. 'ubuntu@22.04:amd64')"""
 
-    def __new__(cls, value: str, /):
+    def __new__(cls, value: str, *, parsing_typer_parameter=True):
         match = re.fullmatch(
             r"(?P<base>ubuntu@[0-9]{2}\.[0-9]{2}):(?P<architecture>[a-z0-9]+)", value
         )
         if not match:
-            raise typer.BadParameter(
-                f"{repr(value)} is not a valid ST124 shorthand notation platform.\n\n"
-                "Docs: https://github.com/canonical/charmcraftst124?tab=readme-ov-file#usage"
-            )
+            if parsing_typer_parameter:
+                raise typer.BadParameter(
+                    f"{repr(value)} is not a valid ST124 shorthand notation platform.\n\n"
+                    "Docs: https://github.com/canonical/charmcraftst124?tab=readme-ov-file#usage"
+                )
+            else:
+                raise ValueError(
+                    "Invalid ST124 shorthand notation in charmcraft.yaml 'platforms': "
+                    f"{repr(value)}\n\n"
+                    "Docs: https://github.com/canonical/charmcraftst124?tab=readme-ov-file#usage"
+                )
         instance: Platform = super().__new__(cls, value)
         instance.base = match.group("base")
         instance.architecture = match.group("architecture")
@@ -261,6 +268,9 @@ def check_charmcraft_yaml(verbose: Verbose = False):
                 "charmcraft.yaml 'platforms'.\n\n"
                 "Docs: https://github.com/canonical/charmcraftst124?tab=readme-ov-file#usage"
             )
+    for platform in platforms:
+        # Validate `platform` string with regex
+        Platform(platform, parsing_typer_parameter=False)
 
 
 @app.callback()
