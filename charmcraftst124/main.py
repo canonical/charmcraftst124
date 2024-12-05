@@ -17,7 +17,8 @@ import typing_extensions
 import yaml
 
 app = typer.Typer(
-    help="Temporary compatibility wrapper to use ST124 shorthand notation with older versions of charmcraft 3 that don't support ST124"
+    help="Temporary compatibility wrapper to use ST124 shorthand notation with older versions of "
+    "charmcraft 3 that don't support ST124"
 )
 Verbose = typing_extensions.Annotated[bool, typer.Option("--verbose", "-v")]
 running_in_ci = os.environ.get("CI") == "true"
@@ -227,6 +228,24 @@ def pack(
         logger.exception("charmcraft command failed:")
         shutil.move(charmcraft_yaml_backup, charmcraft_yaml)
         exit(exception.returncode)
+
+    # Rename *.charm file to include platform so that different platforms don't have overlapping
+    # file names
+    charm_files = list(pathlib.Path().glob(f"*_{platform.architecture}.charm"))
+    if not charm_files:
+        logger.error("No *.charm file found. Failed to rename *.charm file")
+    elif len(charm_files) > 1:
+        logger.warning(f"{len(charm_files)} *.charm files found. Expected 1 file")
+    for charm_file in charm_files:
+        charm_file: pathlib.Path
+        # Example `charm_file.name`: "mysql-router-k8s_amd64.charm"
+        # Example `new_path.name`: "mysql-router-k8s_ubuntu-22.04-amd64.charm" (matches file name
+        # from old charmcraft.yaml `bases` syntax)
+        new_path = charm_file.parent / charm_file.name.replace(
+            f"_{platform.architecture}.", f'_{platform.replace("@", "-").replace(":", "-")}.'
+        )
+        shutil.move(charm_file, new_path)
+        logger.info(f"Moved {charm_file} to {new_path}")
 
 
 @app.callback()
