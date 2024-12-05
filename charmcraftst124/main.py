@@ -234,6 +234,7 @@ def pack(
     charm_files = list(pathlib.Path().glob(f"*_{platform.architecture}.charm"))
     if not charm_files:
         logger.error("No *.charm file found. Failed to rename *.charm file")
+        exit(1)
     elif len(charm_files) > 1:
         logger.warning(f"{len(charm_files)} *.charm files found. Expected 1 file")
     for charm_file in charm_files:
