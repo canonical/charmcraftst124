@@ -141,10 +141,8 @@ def converted_charmcraft_yaml(platform: Platform | None, /):
     )
     try:
         yield
-    except KeyboardInterrupt:
+    finally:
         shutil.move(charmcraft_yaml_backup, charmcraft_yaml)
-        raise
-    shutil.move(charmcraft_yaml_backup, charmcraft_yaml)
 
 
 def run_charmcraft(command: list[str], *, platform: Platform | None):
@@ -172,7 +170,6 @@ def run_charmcraft(command: list[str], *, platform: Platform | None):
         # `charmcraft` stderr will be shown in terminal, no need to raise exception—just log
         # traceback.
         logger.exception("charmcraft command failed:")
-        shutil.move(charmcraft_yaml_backup, charmcraft_yaml)
         exit(exception.returncode)
 
 
