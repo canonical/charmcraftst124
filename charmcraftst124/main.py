@@ -115,7 +115,7 @@ class Platform(str):
 
 
 @contextlib.contextmanager
-def converted_charmcraft_yaml(platform: Platform, /):
+def converted_charmcraft_yaml(platform: Platform | None, /):
     """Convert charmcraft.yaml ST124 syntax to older charmcraft 3 syntax
 
     Example older charmcraft 3 syntax:
@@ -126,7 +126,11 @@ def converted_charmcraft_yaml(platform: Platform, /):
     ```
     """
     yaml_data = yaml.safe_load(charmcraft_yaml.read_text())
-    yaml_data.pop("platforms")
+    platforms = yaml_data.pop("platforms")
+    if platform is None:
+        # Running `charmcraft clean`
+        # Use first platform in `platforms`
+        platform = Platform(next(iter(platforms)), parsing_typer_parameter=False)
     yaml_data["base"] = platform.base
     yaml_data["platforms"] = {platform.architecture: None}
     shutil.move(charmcraft_yaml, charmcraft_yaml_backup)
@@ -141,6 +145,35 @@ def converted_charmcraft_yaml(platform: Platform, /):
         shutil.move(charmcraft_yaml_backup, charmcraft_yaml)
         raise
     shutil.move(charmcraft_yaml_backup, charmcraft_yaml)
+
+
+def run_charmcraft(command: list[str], *, platform: Platform | None):
+    try:
+        version = json.loads(
+            subprocess.run(
+                ["charmcraft", "version", "--format", "json"],
+                capture_output=True,
+                check=True,
+                text=True,
+            ).stdout
+        )["version"]
+    except FileNotFoundError:
+        version = None
+    if packaging.version.parse(version or "0.0.0") < packaging.version.parse("3"):
+        raise Exception(f'charmcraft {version or "not"} installed. charmcraft >=3 required')
+    command = ["charmcraft", *command]
+    if state.verbose:
+        command.append("-v")
+    try:
+        with converted_charmcraft_yaml(platform):
+            logger.debug(f"Running {command}")
+            subprocess.run(command, check=True)
+    except subprocess.CalledProcessError as exception:
+        # `charmcraft` stderr will be shown in terminal, no need to raise exception—just log
+        # traceback.
+        logger.exception("charmcraft command failed:")
+        shutil.move(charmcraft_yaml_backup, charmcraft_yaml)
+        exit(exception.returncode)
 
 
 @app.command(context_settings={"allow_extra_args": True, "ignore_unknown_options": True})
@@ -178,34 +211,8 @@ def pack(
             f"{repr(list(platforms))}"
         )
 
-    try:
-        version = json.loads(
-            subprocess.run(
-                ["charmcraft", "version", "--format", "json"],
-                capture_output=True,
-                check=True,
-                text=True,
-            ).stdout
-        )["version"]
-    except FileNotFoundError:
-        version = None
-    if packaging.version.parse(version or "0.0.0") < packaging.version.parse("3"):
-        raise Exception(f'charmcraft {version or "not"} installed. charmcraft >=3 required')
-
-    command = ["charmcraft", "pack", *context.args]
-    if state.verbose:
-        command.append("-v")
     logger.info(f"Packing platform: {repr(platform)}")
-    try:
-        with converted_charmcraft_yaml(platform):
-            logger.debug(f"Running {command}")
-            subprocess.run(command, check=True)
-    except subprocess.CalledProcessError as exception:
-        # `charmcraft` stderr will be shown in terminal, no need to raise exception—just log
-        # traceback.
-        logger.exception("charmcraft command failed:")
-        shutil.move(charmcraft_yaml_backup, charmcraft_yaml)
-        exit(exception.returncode)
+    run_charmcraft(["pack", *context.args], platform=platform)
 
     # Rename *.charm file to include platform so that different platforms don't have overlapping
     # file names
@@ -271,6 +278,17 @@ def check_charmcraft_yaml(verbose: Verbose = False):
     for platform in platforms:
         # Validate `platform` string with regex
         Platform(platform, parsing_typer_parameter=False)
+
+
+@app.command()
+def clean(verbose: Verbose = False):
+    """`charmcraft clean`"""
+    if verbose:
+        # Verbose can be globally enabled from app level or command level
+        # (Therefore, we should only enable verbose—not disable it)
+        state.verbose = True
+    logger.info("Running `charmcraft clean`")
+    run_charmcraft(["clean"], platform=None)
 
 
 @app.callback()
