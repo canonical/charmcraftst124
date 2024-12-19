@@ -4,6 +4,7 @@ import json
 import logging
 import os
 import pathlib
+import platform as platform_
 import re
 import shutil
 import subprocess
@@ -115,7 +116,7 @@ class Platform(str):
 
 
 @contextlib.contextmanager
-def converted_charmcraft_yaml(platform: Platform | None, /):
+def converted_charmcraft_yaml(platform: Platform, /):
     """Convert charmcraft.yaml ST124 syntax to older charmcraft 3 syntax
 
     Example older charmcraft 3 syntax:
@@ -126,11 +127,6 @@ def converted_charmcraft_yaml(platform: Platform | None, /):
     ```
     """
     yaml_data = yaml.safe_load(charmcraft_yaml.read_text())
-    platforms = yaml_data.pop("platforms")
-    if platform is None:
-        # Running `charmcraft clean`
-        # Use first platform in `platforms`
-        platform = Platform(next(iter(platforms)), parsing_typer_parameter=False)
     yaml_data["base"] = platform.base
     yaml_data["platforms"] = {platform.architecture: None}
     shutil.move(charmcraft_yaml, charmcraft_yaml_backup)
@@ -145,7 +141,7 @@ def converted_charmcraft_yaml(platform: Platform | None, /):
         shutil.move(charmcraft_yaml_backup, charmcraft_yaml)
 
 
-def run_charmcraft(command: list[str], *, platform: Platform | None):
+def run_charmcraft(command: list[str], *, platform: Platform):
     try:
         version = json.loads(
             subprocess.run(
@@ -284,8 +280,19 @@ def clean(verbose: Verbose = False):
         # Verbose can be globally enabled from app level or command level
         # (Therefore, we should only enable verbose—not disable it)
         state.verbose = True
-    logger.info("Running `charmcraft clean`")
-    run_charmcraft(["clean"], platform=None)
+    all_platforms = [
+        Platform(platform, parsing_typer_parameter=False)
+        for platform in yaml.safe_load(charmcraft_yaml.read_text())["platforms"]
+    ]
+    architecture = {"x86_64": "amd64", "aarch64": "arm64"}[platform_.machine()]
+    platforms = [platform for platform in all_platforms if platform.architecture == architecture]
+    if not platforms:
+        raise ValueError(
+            f"No platforms for this machine's architecture ({architecture}): {repr(all_platforms)}"
+        )
+    for platform in platforms:
+        logger.info(f"Cleaning platform: {repr(platform)}")
+        run_charmcraft(["clean"], platform=platform)
 
 
 @app.callback()
