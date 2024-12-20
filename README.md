@@ -1,9 +1,9 @@
 # charmcraftst124
 
-> [!WARNING]
-> This project will be deprecated when [ST124 - Multi-base platforms in craft tools](https://docs.google.com/document/d/1QVHxZumruKVZ3yJ2C74qWhvs-ye5I9S6avMBDHs2YcQ/edit) is implemented in [charmcraft](https://github.com/canonical/charmcraft).
+> [!CAUTION]
+> This project is **deprecated**. Use [charmcraft](https://github.com/canonical/charmcraft) >=3.3.0 instead
 
-Pack multi-base charms (that include base Ubuntu 24.04) with a single charmcraft.yaml and git branch using the upcoming ST124 "shorthand notation" charmcraft.yaml syntax
+Pack multi-base charms (that include base Ubuntu 24.04) with a single charmcraft.yaml and git branch using the upcoming [ST124 - Multi-base platforms in craft tools](https://docs.google.com/document/d/1QVHxZumruKVZ3yJ2C74qWhvs-ye5I9S6avMBDHs2YcQ/edit) "shorthand notation" charmcraft.yaml syntax
 
 ## Installation
 Install `pipx`: https://pipx.pypa.io/stable/installation/

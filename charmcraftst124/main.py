@@ -18,7 +18,7 @@ import typing_extensions
 import yaml
 
 app = typer.Typer(
-    help="Temporary compatibility wrapper to use ST124 shorthand notation with older versions of "
+    help="(deprecated) Temporary compatibility wrapper to use ST124 shorthand notation with older versions of "
     "charmcraft 3 that don't support ST124"
 )
 Verbose = typing_extensions.Annotated[bool, typer.Option("--verbose", "-v")]
@@ -169,7 +169,9 @@ def run_charmcraft(command: list[str], *, platform: Platform):
         exit(exception.returncode)
 
 
-@app.command(context_settings={"allow_extra_args": True, "ignore_unknown_options": True})
+@app.command(
+    context_settings={"allow_extra_args": True, "ignore_unknown_options": True}, deprecated=True
+)
 def pack(
     context: typer.Context,
     platform: typing_extensions.Annotated[
@@ -227,7 +229,7 @@ def pack(
         logger.info(f"Moved {charm_file} to {new_path}")
 
 
-@app.command()
+@app.command(deprecated=True)
 def check_charmcraft_yaml(verbose: Verbose = False):
     """Check if supported ST124 shorthand notation syntax is used in charmcraft.yaml
 
@@ -273,7 +275,7 @@ def check_charmcraft_yaml(verbose: Verbose = False):
         Platform(platform, parsing_typer_parameter=False)
 
 
-@app.command()
+@app.command(deprecated=True)
 def clean(verbose: Verbose = False):
     """`charmcraft clean`"""
     if verbose:
@@ -305,6 +307,10 @@ def main(verbose: Verbose = False):
 
 installed_version = importlib.metadata.version("charmcraftst124")
 state = State()
+logger.warning("`charmcraftst124` is deprecated. Use charmcraft >=3.3.0 instead")
+if running_in_ci:
+    # "::warning::" for https://docs.github.com/en/actions/writing-workflows/choosing-what-your-workflow-does/workflow-commands-for-github-actions#setting-a-warning-message
+    console.print("::warning::`charmcraftst124` is deprecated. Use charmcraft >=3.3.0 instead")
 charmcraft_yaml = pathlib.Path("charmcraft.yaml")
 charmcraft_yaml_backup = pathlib.Path("charmcraft.yaml.backup")
 
